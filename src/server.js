@@ -1,3 +1,4 @@
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -45,7 +46,13 @@ app.post('/crawl', upload.single('browserProfile'), async (req, res) => {
       proxyPort,
       proxyUsername,
       proxyPassword,
-      twoCaptchaKey
+      twoCaptchaKey,
+      fullXPath,
+      shortXPath,
+      cssSelector,
+      simpleSelector,
+      elementSelector,
+      idSelector
     } = req.body;
 
     if (!url || !isValidUrl(url)) {
@@ -68,7 +75,15 @@ app.post('/crawl', upload.single('browserProfile'), async (req, res) => {
       socketIo: io,
       browserProfilePath: browserProfilePath,
       waitTime: config.crawler.waitTime,
-      twoCaptchaKey: twoCaptchaKey
+      twoCaptchaKey: twoCaptchaKey,
+      selectors: {
+        fullXPath,
+        shortXPath,
+        cssSelector,
+        simpleSelector,
+        elementSelector,
+        idSelector
+      }
     };
 
     if (useLogin === 'true' && username && password && loginUrl) {
@@ -83,7 +98,6 @@ app.post('/crawl', upload.single('browserProfile'), async (req, res) => {
         password: proxyPassword || config.proxy.password
       };
 
-      // Proxy doğrulama
       const proxyIp = await browserService.verifyProxyUsage(options.proxy);
       if (proxyIp) {
         io.emit('proxy_verified', { ip: proxyIp });

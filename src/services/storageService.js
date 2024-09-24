@@ -1,3 +1,4 @@
+
 const cheerio = require('cheerio');
 const fs = require('fs').promises;
 const path = require('path');
@@ -28,6 +29,7 @@ exports.savePage = async (url, content, resources) => {
     
     const $ = cheerio.load(content);
     
+    // Update resource URLs to absolute URLs
     $('a, link, script, img').each((i, elem) => {
         const attr = $(elem).attr('href') ? 'href' : 'src';
         const oldUrl = $(elem).attr(attr);
@@ -40,6 +42,7 @@ exports.savePage = async (url, content, resources) => {
     await fs.writeFile(filePath, $.html());
     logger.info(`Saved: ${url} to ${filePath}`);
 
+    // Download and save additional resources (CSS, images, etc.)
     for (const resource of resources) {
         try {
             const resourceUrl = new URL(resource.url);
@@ -59,19 +62,30 @@ exports.savePage = async (url, content, resources) => {
     }
 };
 
-exports.savePartialPage = async (url, content) => {
+exports.saveJavaScriptFiles = async (url, jsFiles) => {
     const parsedUrl = new URL(url);
     const domain = parsedUrl.hostname;
     const urlHash = createHash('md5').update(url).digest('hex').substring(0, 8);
-    
-    const dirPath = path.join('downloads', domain, 'partial_pages');
+
+    const dirPath = path.join('downloads', domain, 'js');
     await fs.mkdir(dirPath, { recursive: true });
-    
-    const fileName = `${urlHash}_partial.html`;
-    const filePath = path.join(dirPath, fileName);
-    
-    await fs.writeFile(filePath, content);
-    logger.info(`Saved partial content for ${url} to ${filePath}`);
+
+    for (const jsFile of jsFiles) {
+        try {
+            const jsUrl = new URL(jsFile, url);
+            const jsPath = jsUrl.pathname;
+            const jsHash = createHash('md5').update(jsFile).digest('hex').substring(0, 8);
+            const jsFileName = `${jsHash}_${path.basename(jsPath)}`;
+            const jsFilePath = path.join(dirPath, jsFileName);
+            
+            const response = await fetch(jsUrl.href);
+            const buffer = await response.arrayBuffer();
+            await fs.writeFile(jsFilePath, Buffer.from(buffer));
+            logger.info(`Saved JS file: ${jsFile} to ${jsFilePath}`);
+        } catch (error) {
+            logger.error(`Error saving JS file ${jsFile}: ${error.message}`);
+        }
+    }
 };
 
 exports.saveInteractiveElements = async (url, elements) => {

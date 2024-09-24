@@ -67,6 +67,15 @@ function App() {
     skippedPages: 0
   });
   const [crawlData, setCrawlData] = React.useState([]);
+  const [fullXPath, setFullXPath] = React.useState('');
+  const [shortXPath, setShortXPath] = React.useState('');
+  const [cssSelector, setCssSelector] = React.useState('');
+  const [simpleSelector, setSimpleSelector] = React.useState('');
+  const [elementSelector, setElementSelector] = React.useState('');
+  const [idSelector, setIdSelector] = React.useState('');
+  const [specialPages, setSpecialPages] = React.useState([]);
+  const [specialPageUrl, setSpecialPageUrl] = React.useState('');
+  const [specialPageSelector, setSpecialPageSelector] = React.useState('');
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -179,6 +188,13 @@ function App() {
     formData.append('maxDepth', maxDepth);
     formData.append('maxPages', maxPages);
     formData.append('twoCaptchaKey', twoCaptchaKey);
+    formData.append('fullXPath', fullXPath);
+    formData.append('shortXPath', shortXPath);
+    formData.append('cssSelector', cssSelector);
+    formData.append('simpleSelector', simpleSelector);
+    formData.append('elementSelector', elementSelector);
+    formData.append('idSelector', idSelector);
+    
     if (browserProfileFile) {
       formData.append('browserProfile', browserProfileFile);
     }
@@ -187,6 +203,11 @@ function App() {
       formData.append('proxyPort', proxyPort);
       formData.append('proxyUsername', proxyUsername);
       formData.append('proxyPassword', proxyPassword);
+    }
+
+    // Append special pages and selectors
+    if (specialPages.length > 0) {
+      formData.append('specialPages', JSON.stringify(specialPages));
     }
 
     fetch('/crawl', {
@@ -269,6 +290,15 @@ function App() {
       return false;
     }
   }
+
+  const handleSpecialPageAddition = () => {
+    setSpecialPages(prevPages => [
+      ...prevPages,
+      { url: specialPageUrl, selector: specialPageSelector }
+    ]);
+    setSpecialPageUrl('');
+    setSpecialPageSelector('');
+  };
 
   return (
     <ThemeProvider theme={darkTheme}>
