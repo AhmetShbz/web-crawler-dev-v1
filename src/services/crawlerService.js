@@ -6,25 +6,34 @@ const axios = require('axios');
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-
 exports.crawlWebsite = async (startUrl, options) => {
-    const { maxDepth, maxPages, socketIo, login, browserProfilePath, proxy, waitTime } = options;
-  
-    let browser, page;
-    const visitedUrls = new Set();
-    const urlsToVisit = [{ url: startUrl, depth: 0 }];
-    let pagesCrawled = 0;
-    let successfulPages = 0;
-    let failedPages = 0;
-    let skippedPages = 0;
-    let shouldStop = false;
-  
-    try {
-      ({ browser, page } = await browserService.launchBrowser(browserProfilePath, proxy));
-      await browserService.setupPage(page);
-  
-      if (login) {
-        await browserService.performLogin(page, login);
+  const { maxDepth, maxPages, socketIo, login, browserProfilePath, proxy, waitTime } = options;
+
+  let browser, page;
+  const visitedUrls = new Set();
+  const urlsToVisit = [{ url: startUrl, depth: 0 }];
+  let pagesCrawled = 0;
+  let successfulPages = 0;
+  let failedPages = 0;
+  let skippedPages = 0;
+  let shouldStop = false;
+
+  try {
+    ({ browser, page } = await browserService.launchBrowser(browserProfilePath, proxy));
+    await browserService.setupPage(page);
+
+    if (login) {
+      await browserService.performLogin(page, login);
+    }
+
+    if (proxy) {
+      const proxyIp = await browserService.verifyProxyUsage(page);
+      if (proxyIp) {
+        logger.info(`Proxy başarıyla doğrulandı. Kullanılan IP: ${proxyIp}`);
+        socketIo.emit('proxy_verified', { ip: proxyIp });} else {
+          logger.warn('Proxy doğrulanamadı. Normal IP kullanılıyor.');
+          socketIo.emit('proxy_verification_failed');
+        }
       }
   
       while (urlsToVisit.length > 0 && pagesCrawled < maxPages && !shouldStop) {
@@ -100,104 +109,104 @@ exports.crawlWebsite = async (startUrl, options) => {
       }
     };
   };
-
-async function extractAndSaveInteractiveElements(page, url) {
+  
+  async function extractAndSaveInteractiveElements(page, url) {
     try {
-        logger.debug(`Extracting interactive elements for ${url}`);
-        const interactiveElements = await page.evaluate(() => {
-            const elements = [];
-            // Extract buttons
-            document.querySelectorAll('button, input[type="button"], a.btn').forEach(el => {
-                elements.push({
-                    type: 'button',
-                    text: el.innerText || el.value,
-                    id: el.id,
-                    class: el.className,
-                    href: el.href
-                });
-            });
-            // Extract forms
-            document.querySelectorAll('form').forEach(form => {
-                const formData = {
-                    type: 'form',
-                    id: form.id,
-                    class: form.className,
-                    action: form.action,
-                    method: form.method,
-                    fields: []
-                };
-                form.querySelectorAll('input, select, textarea').forEach(field => {
-                    formData.fields.push({
-                        type: field.type || field.tagName.toLowerCase(),
-                        name: field.name,
-                        id: field.id,
-                        class: field.className
-                    });
-                });
-                elements.push(formData);
-            });
-            // Extract modals/popups
-            document.querySelectorAll('.modal, .popup, [class*="modal"], [class*="popup"]').forEach(el => {
-                elements.push({
-                    type: 'modal',
-                    id: el.id,
-                    class: el.className,
-                    content: el.innerHTML
-                });
-            });
-            return elements;
+      logger.debug(`Extracting interactive elements for ${url}`);
+      const interactiveElements = await page.evaluate(() => {
+        const elements = [];
+        // Extract buttons
+        document.querySelectorAll('button, input[type="button"], a.btn').forEach(el => {
+          elements.push({
+            type: 'button',
+            text: el.innerText || el.value,
+            id: el.id,
+            class: el.className,
+            href: el.href
+          });
         });
-
-        await storageService.saveInteractiveElements(url, interactiveElements);
-        logger.info(`Interactive elements saved for ${url}`);
-    } catch (error) {
-        logger.error(`Error extracting interactive elements for ${url}: ${error.message}`, { stack: error.stack });
-    }
-}
-
-async function simulateAndSaveJsonResponses(page, url) {
-    try {
-        logger.debug(`Simulating JSON responses for ${url}`);
-        const jsonResponses = await page.evaluate(() => {
-            const responses = [];
-            // Simulate API calls
-            const apiEndpoints = [
-                '/api/users',
-                '/api/products',
-                '/api/orders'
-            ];
-            apiEndpoints.forEach(endpoint => {
-                responses.push({
-                    url: new URL(endpoint, window.location.origin).href,
-                    data: {
-                        // Simulated data
-                        success: true,
-                        data: [
-                            { id: 1, name: 'Item 1' },
-                            { id: 2, name: 'Item 2' },
-                            { id: 3, name: 'Item 3' }
-                        ]
-                    }
-                });
+        // Extract forms
+        document.querySelectorAll('form').forEach(form => {
+          const formData = {
+            type: 'form',
+            id: form.id,
+            class: form.className,
+            action: form.action,
+            method: form.method,
+            fields: []
+          };
+          form.querySelectorAll('input, select, textarea').forEach(field => {
+            formData.fields.push({
+              type: field.type || field.tagName.toLowerCase(),
+              name: field.name,
+              id: field.id,
+              class: field.className
             });
-            return responses;
+          });
+          elements.push(formData);
         });
-
-        for (const response of jsonResponses) {
-            await storageService.saveJsonResponse(url, response.url, response.data);
-        }
-        logger.info(`JSON responses saved for ${url}`);
+        // Extract modals/popups
+        document.querySelectorAll('.modal, .popup, [class*="modal"], [class*="popup"]').forEach(el => {
+          elements.push({
+            type: 'modal',
+            id: el.id,
+            class: el.className,
+            content: el.innerHTML
+          });
+        });
+        return elements;
+      });
+  
+      await storageService.saveInteractiveElements(url, interactiveElements);
+      logger.info(`Interactive elements saved for ${url}`);
     } catch (error) {
-        logger.error(`Error simulating JSON responses for ${url}: ${error.message}`, { stack: error.stack });
+      logger.error(`Error extracting interactive elements for ${url}: ${error.message}`, { stack: error.stack });
     }
-}
-
-async function getIpAddress() {
+  }
+  
+  async function simulateAndSaveJsonResponses(page, url) {
     try {
-        const response = await axios.get('https://api.ipify.org?format=json');
-        return response.data.ip;
+      logger.debug(`Simulating JSON responses for ${url}`);
+      const jsonResponses = await page.evaluate(() => {
+        const responses = [];
+        // Simulate API calls
+        const apiEndpoints = [
+          '/api/users',
+          '/api/products',
+          '/api/orders'
+        ];
+        apiEndpoints.forEach(endpoint => {
+          responses.push({
+            url: new URL(endpoint, window.location.origin).href,
+            data: {
+              // Simulated data
+              success: true,
+              data: [
+                { id: 1, name: 'Item 1' },
+                { id: 2, name: 'Item 2' },
+                { id: 3, name: 'Item 3' }
+              ]
+            }
+          });
+        });
+        return responses;
+      });
+  
+      for (const response of jsonResponses) {
+        await storageService.saveJsonResponse(url, response.url, response.data);
+      }
+      logger.info(`JSON responses saved for ${url}`);
     } catch (error) {
-        logger.error(`Error getting IP address: ${error.message}`);
-        return 'Unknown';
+      logger.error(`Error simulating JSON responses for ${url}: ${error.message}`, { stack: error.stack });
     }
-}
+  }
+  
+  async function getIpAddress() {
+    try {
+      const response = await axios.get('https://api.ipify.org?format=json');
+      return response.data.ip;
+    } catch (error) {
+      logger.error(`Error getting IP address: ${error.message}`);
+      return 'Unknown';
+    }
+  }

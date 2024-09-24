@@ -20,14 +20,12 @@ const io = socketIo(server);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100
 });
 app.use(limiter);
 
-// Multer setup for file upload
 const upload = multer({ dest: 'uploads/' });
 
 let crawlProcess = null;
@@ -57,9 +55,9 @@ app.post('/crawl', upload.single('browserProfile'), async (req, res) => {
     let browserProfilePath = null;
 
     if (req.file) {
-      // Tarayıcı profili işleme kodu...
-    } else {
-      browserProfilePath = path.join(__dirname, 'default_browser_profile');
+      const { path: tempPath, originalname } = req.file;
+      browserProfilePath = path.join(__dirname, 'uploads', originalname);
+      await fs.rename(tempPath, browserProfilePath);
     }
 
     res.json({ message: 'Tarama başlatıldı.' });
@@ -84,6 +82,14 @@ app.post('/crawl', upload.single('browserProfile'), async (req, res) => {
         username: proxyUsername || config.proxy.username,
         password: proxyPassword || config.proxy.password
       };
+
+      // Proxy doğrulama
+      const proxyIp = await browserService.verifyProxyUsage(options.proxy);
+      if (proxyIp) {
+        io.emit('proxy_verified', { ip: proxyIp });
+      } else {
+        io.emit('proxy_verification_failed');
+      }
     }
 
     try {
@@ -95,7 +101,6 @@ app.post('/crawl', upload.single('browserProfile'), async (req, res) => {
       io.emit('crawl_error', { message: 'Tarama sırasında bir hata oluştu.' });
     } finally {
       if (req.file) {
-        await exec(`rm -rf ${path.join(__dirname, 'browser_profile')}`);
         await fs.unlink(browserProfilePath);
       }
       crawlProcess = null;

@@ -4,7 +4,8 @@
   "description": "Advanced website crawler with proxy support, browser fingerprinting, and Cloudflare bypass",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
   },
   "dependencies": {
     "archiver": "^5.3.1",
@@ -19,6 +20,10 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "puppeteer-real-browser": "^1.0.5",
     "socket.io": "^4.2.0",
-    "winston": "^3.3.3"
+    "winston": "^3.3.3",
+    "winston-daily-rotate-file": "^4.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.12"
   }
 }
