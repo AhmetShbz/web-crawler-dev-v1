@@ -1,7 +1,5 @@
 # Gelişmiş Web Sitesi Tarayıcısı
 
-![Proje Logosu](https://via.placeholder.com/150?text=Advanced+Crawler)
-
 ## İçindekiler
 
 1. [Giriş](#giriş)
@@ -116,8 +114,6 @@ graph TD
 6. Tarayıcınızı açın ve tarayıcı arayüzüne erişmek için `http://localhost:3000` adresine gidin.
 
 ## Kullanım
-
-![Kullanım GIF](https://via.placeholder.com/600x400?text=Kullanım+GIF)
 
 1. "Website URL" alanına hedef URL'yi girin.
 2. "Max Depth" ve "Max Pages" ayarlarını ihtiyacınıza göre ayarlayın.
